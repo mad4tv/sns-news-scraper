@@ -12,32 +12,31 @@ async function scrape() {
     const url = PROXY + encodeURIComponent(TARGET_URL);
     const response = await axios.get(url);
 
-    const html = response.data.contents;
+    let html = response.data.contents;
 
     if (!html) {
-      throw new Error("Sem HTML");
+      throw new Error("Sem conteúdo");
     }
 
-    console.log("HTML recebido (primeiros 300 chars):");
-    console.log(html.substring(0, 300));
+    // 🔥 DETETAR E DECODIFICAR BASE64
+    if (!html.includes("<html")) {
+      console.log("Conteúdo em Base64 detetado → a descodificar...");
+      html = Buffer.from(html, "base64").toString("utf-8");
+    }
 
     const $ = cheerio.load(html);
-
     const noticias = [];
 
-    // 🔥 NOVO SELETOR MAIS GENÉRICO
-    $("article, .views-row, .card, .node").each((i, el) => {
-      const titulo = $(el).find("a").first().text().trim();
-      const link = $(el).find("a").first().attr("href");
-      const dataPub = $(el).text().match(/\d{1,2}\/\d{1,2}\/\d{4}/)?.[0];
+    $(".views-row").each((i, el) => {
+      const titulo = $(el).find("h3 a").text().trim();
+      const link = $(el).find("h3 a").attr("href");
+      const dataPub = $(el).find(".date-display-single").text().trim();
 
-      if (titulo && link && titulo.length > 10) {
+      if (titulo && link) {
         noticias.push({
           titulo,
           data: dataPub || null,
-          link: link.startsWith("http")
-            ? link
-            : "https://www.sns.gov.pt" + link
+          link: "https://www.sns.gov.pt" + link
         });
       }
     });
