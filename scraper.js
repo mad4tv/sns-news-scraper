@@ -10,43 +10,47 @@ async function scrape() {
     console.log("A obter notícias do SNS via proxy...");
 
     const url = PROXY + encodeURIComponent(TARGET_URL);
-
     const response = await axios.get(url);
 
     const html = response.data.contents;
 
     if (!html) {
-      throw new Error("Sem conteúdo recebido do proxy");
+      throw new Error("Sem HTML");
     }
 
+    console.log("HTML recebido (primeiros 300 chars):");
+    console.log(html.substring(0, 300));
+
     const $ = cheerio.load(html);
+
     const noticias = [];
 
-    $(".views-row").each((i, el) => {
-      const titulo = $(el).find("h3 a").text().trim();
-      const link = $(el).find("h3 a").attr("href");
-      const dataPub = $(el).find(".date-display-single").text().trim();
+    // 🔥 NOVO SELETOR MAIS GENÉRICO
+    $("article, .views-row, .card, .node").each((i, el) => {
+      const titulo = $(el).find("a").first().text().trim();
+      const link = $(el).find("a").first().attr("href");
+      const dataPub = $(el).text().match(/\d{1,2}\/\d{1,2}\/\d{4}/)?.[0];
 
-      if (titulo && link) {
+      if (titulo && link && titulo.length > 10) {
         noticias.push({
           titulo,
           data: dataPub || null,
-          link: "https://www.sns.gov.pt" + link
+          link: link.startsWith("http")
+            ? link
+            : "https://www.sns.gov.pt" + link
         });
       }
     });
 
-    // remover duplicados
     const unicas = Array.from(
       new Map(noticias.map(item => [item.link, item])).values()
     );
 
-    // limitar a 10
     const limitadas = unicas.slice(0, 10);
 
     fs.writeFileSync("noticias.json", JSON.stringify(limitadas, null, 2));
 
-    console.log(`✅ ${limitadas.length} notícias guardadas com sucesso!`);
+    console.log(`✅ ${limitadas.length} notícias guardadas!`);
 
   } catch (error) {
     console.error("❌ Erro:", error.message);
