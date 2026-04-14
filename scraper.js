@@ -10,12 +10,21 @@ async function scrape() {
 
     const response = await axios.get(URL, {
       headers: {
-        "User-Agent": "Mozilla/5.0"
-      }
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "pt-PT,pt;q=0.9",
+        "Referer": "https://www.google.com/",
+        "Cache-Control": "no-cache"
+      },
+      maxRedirects: 5,
+      validateStatus: status => status < 500 // aceita 403/405 para debug
     });
 
-    const $ = cheerio.load(response.data);
+    if (response.status !== 200) {
+      throw new Error(`Status ${response.status}`);
+    }
 
+    const $ = cheerio.load(response.data);
     const noticias = [];
 
     $(".views-row").each((i, el) => {
@@ -32,12 +41,10 @@ async function scrape() {
       }
     });
 
-    // remover duplicados
     const unicas = Array.from(
       new Map(noticias.map(item => [item.link, item])).values()
     );
 
-    // limitar a 10
     const limitadas = unicas.slice(0, 10);
 
     fs.writeFileSync("noticias.json", JSON.stringify(limitadas, null, 2));
@@ -45,7 +52,7 @@ async function scrape() {
     console.log(`✅ ${limitadas.length} notícias guardadas!`);
 
   } catch (error) {
-    console.error("❌ Erro:", error.message);
+    console.error("❌ Erro final:", error.message);
   }
 }
 
