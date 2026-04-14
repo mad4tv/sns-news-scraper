@@ -2,29 +2,24 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 import fs from "fs";
 
-const URL = "https://www.sns.gov.pt/noticias/";
+const TARGET_URL = "https://www.sns.gov.pt/noticias/";
+const PROXY = "https://api.allorigins.win/get?url=";
 
 async function scrape() {
   try {
-    console.log("A obter notícias do SNS...");
+    console.log("A obter notícias do SNS via proxy...");
 
-    const response = await axios.get(URL, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        "Accept": "text/html,application/xhtml+xml",
-        "Accept-Language": "pt-PT,pt;q=0.9",
-        "Referer": "https://www.google.com/",
-        "Cache-Control": "no-cache"
-      },
-      maxRedirects: 5,
-      validateStatus: status => status < 500 // aceita 403/405 para debug
-    });
+    const url = PROXY + encodeURIComponent(TARGET_URL);
 
-    if (response.status !== 200) {
-      throw new Error(`Status ${response.status}`);
+    const response = await axios.get(url);
+
+    const html = response.data.contents;
+
+    if (!html) {
+      throw new Error("Sem conteúdo recebido do proxy");
     }
 
-    const $ = cheerio.load(response.data);
+    const $ = cheerio.load(html);
     const noticias = [];
 
     $(".views-row").each((i, el) => {
@@ -41,18 +36,20 @@ async function scrape() {
       }
     });
 
+    // remover duplicados
     const unicas = Array.from(
       new Map(noticias.map(item => [item.link, item])).values()
     );
 
+    // limitar a 10
     const limitadas = unicas.slice(0, 10);
 
     fs.writeFileSync("noticias.json", JSON.stringify(limitadas, null, 2));
 
-    console.log(`✅ ${limitadas.length} notícias guardadas!`);
+    console.log(`✅ ${limitadas.length} notícias guardadas com sucesso!`);
 
   } catch (error) {
-    console.error("❌ Erro final:", error.message);
+    console.error("❌ Erro:", error.message);
   }
 }
 
