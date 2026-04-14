@@ -8,8 +8,13 @@ async function scrape() {
   try {
     console.log("A obter notícias do SNS...");
 
-    const { data } = await axios.get(URL);
-    const $ = cheerio.load(data);
+    const response = await axios.get(URL, {
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      }
+    });
+
+    const $ = cheerio.load(response.data);
 
     const noticias = [];
 
@@ -27,20 +32,20 @@ async function scrape() {
       }
     });
 
-    // remover duplicados (por link)
+    // remover duplicados
     const unicas = Array.from(
       new Map(noticias.map(item => [item.link, item])).values()
     );
 
-    // limitar a 10 notícias
+    // limitar a 10
     const limitadas = unicas.slice(0, 10);
 
     fs.writeFileSync("noticias.json", JSON.stringify(limitadas, null, 2));
 
-    console.log(`✅ ${limitadas.length} notícias guardadas com sucesso!`);
+    console.log(`✅ ${limitadas.length} notícias guardadas!`);
 
   } catch (error) {
-    console.error("❌ Erro ao fazer scraping:", error.message);
+    console.error("❌ Erro:", error.message);
   }
 }
 
